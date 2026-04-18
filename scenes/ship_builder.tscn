@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://cvpci0nsiqbtd"]
+
+[ext_resource type="Script" uid="uid://id4wyoi45r5j" path="res://scripts/ship_builder.gd" id="1_y7r42"]
+
+[node name="ShipBuilder" type="Node2D" unique_id=612308061]
+script = ExtResource("1_y7r42")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1041033896]
+position = Vector2(320, 320)
