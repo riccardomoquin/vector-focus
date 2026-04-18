@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://dkwfu4ayl7no5"]
+
+[ext_resource type="Script" uid="uid://61llvc3itj3d" path="res://scripts/ship_controller.gd" id="1_7t0u0"]
+[ext_resource type="Texture2D" uid="uid://n2jxat41koih" path="res://assets/icon.svg" id="2_ys4te"]
+[ext_resource type="PackedScene" uid="uid://lymt7jqvjcvg" path="res://scenes/engine.tscn" id="3_7ni5w"]
+
+[node name="PlayerShip" type="RigidBody2D" unique_id=2077004508]
+gravity_scale = 0.0
+script = ExtResource("1_7t0u0")
+
+[node name="BaseSprite" type="Sprite2D" parent="." unique_id=1134270068]
+texture = ExtResource("2_ys4te")
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="." unique_id=882809600]
+polygon = PackedVector2Array(-64, -64, 64, -64, 64, 64, -64, 64)
+
+[node name="Modules" type="Node2D" parent="." unique_id=1413194067]
+
+[node name="Engine" parent="Modules" unique_id=813873831 instance=ExtResource("3_7ni5w")]
+position = Vector2(-83, -45)
+power = 500.0
+
+[node name="Engine2" parent="Modules" unique_id=1837889337 instance=ExtResource("3_7ni5w")]
+position = Vector2(-83, 45)
+power = 0.0
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=188356629]
+
+[node name="ParallaxBackground" type="ParallaxBackground" parent="." unique_id=378068155]
+
+[node name="ParallaxLayer" type="ParallaxLayer" parent="ParallaxBackground" unique_id=1625645296]
+motion_mirroring = Vector2(2000, 2000)
+
+[node name="GridSprite" type="Sprite2D" parent="ParallaxBackground/ParallaxLayer" unique_id=1996132433]
+texture_repeat = 2
+texture = ExtResource("2_ys4te")
+region_enabled = true
+region_rect = Rect2(0, 0, 2000, 2000)

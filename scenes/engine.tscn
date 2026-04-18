@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://lymt7jqvjcvg"]
+
+[ext_resource type="Script" uid="uid://1ivqe8nkpnq" path="res://scripts/engine_module.gd" id="1_2mc4n"]
+[ext_resource type="Texture2D" uid="uid://n2jxat41koih" path="res://assets/icon.svg" id="1_xrjxd"]
+
+[node name="Engine" type="Node2D" unique_id=813873831]
+script = ExtResource("1_2mc4n")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=705742971]
+position = Vector2(3.8146973e-06, 0)
+rotation = 1.5707964
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("1_xrjxd")
