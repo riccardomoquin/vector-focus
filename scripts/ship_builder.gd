@@ -7,7 +7,7 @@ const CELL_SIZE = 32
 var grid_data = [] 
 var hovered_cell = Vector2i(-1, -1)
 var module_rotation = 0 
-var is_building_mode = true # Флаг для отключения конструктора в полете
+var is_building_mode = true 
 
 var module_db = {
 	"hull": {"name": "Корпус", "cat": "Корпуса", "size": Vector2i(1, 1), "can_drag": true, "is_system": false, "color": Color.GRAY, "has_marker": false},
@@ -21,24 +21,31 @@ var module_db = {
 }
 
 var selected_module = "hull" 
+var active_category = "Корпуса" 
+var ui_modules_container = null 
 
 func _ready():
 	initialize_grid()
-	create_ui_tabs()
+	create_vertical_ui()
+	
+	# ИСПРАВЛЕНИЕ: Сдвигаем всю сетку вправо на 300 пикселей
+	self.position = Vector2(300, 50)
+	
+	var cam = get_node_or_null("Camera2D")
+	if cam:
+		cam.position = Vector2(320, 320) # Центрируем камеру относительно самой сетки
 
 func initialize_grid():
 	grid_data = []
 	for x in range(GRID_SIZE_X):
 		var column = []
-		for y in range(GRID_SIZE_Y):
-			column.append(null)
+		for y in range(GRID_SIZE_Y): column.append(null)
 		grid_data.append(column)
 
 func get_rotated_size(base_size: Vector2i, rot: int) -> Vector2i:
 	if rot == 1 or rot == 3: return Vector2i(base_size.y, base_size.x)
 	return base_size
 
-# --- СИСТЕМА ПРОВЕРКИ ЗОН ---
 func is_path_clear(start_x, start_y, width, dir: Vector2i) -> bool:
 	var cur_x = start_x; var cur_y = start_y
 	for w in range(width):
@@ -70,7 +77,7 @@ func get_clearance_direction(id, rot) -> Vector2i:
 		if rot == 3: return Vector2i(1, 0)  
 	return Vector2i.ZERO
 
-func is_point_in_clearance_beam(ox, oy, size, rot, dir, px, py) -> bool:
+func is_point_in_clearance_beam(ox, oy, size, _rot, dir, px, py) -> bool:
 	var start_rect = Rect2()
 	if dir == Vector2i(0, -1): start_rect = Rect2(ox, 0, size.x, oy)
 	elif dir == Vector2i(0, 1): start_rect = Rect2(ox, oy + size.y, size.x, GRID_SIZE_Y - (oy + size.y))
@@ -78,7 +85,6 @@ func is_point_in_clearance_beam(ox, oy, size, rot, dir, px, py) -> bool:
 	elif dir == Vector2i(1, 0): start_rect = Rect2(ox + size.x, oy, GRID_SIZE_X - (ox + size.x), size.y)
 	return start_rect.has_point(Vector2(px, py))
 
-# --- ОСНОВНЫЙ ЦИКЛ КОНСТРУКТОРА ---
 func _process(_delta):
 	if not is_building_mode: return
 	
@@ -104,8 +110,11 @@ func _unhandled_input(event):
 	if not is_building_mode: return
 	
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_LEFT: place_module(hovered_cell.x, hovered_cell.y)
-		elif event.button_index == MOUSE_BUTTON_RIGHT: remove_module(hovered_cell.x, hovered_cell.y)
+		# ИСПРАВЛЕНИЕ: Блокируем клик, если мышь вне сетки
+		if hovered_cell != Vector2i(-1, -1):
+			if event.button_index == MOUSE_BUTTON_LEFT: place_module(hovered_cell.x, hovered_cell.y)
+			elif event.button_index == MOUSE_BUTTON_RIGHT: remove_module(hovered_cell.x, hovered_cell.y)
+			
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_R:
 		if selected_module != "cockpit":
 			module_rotation = (module_rotation + 1) % 4
@@ -134,34 +143,27 @@ func place_module(x, y):
 
 func remove_module(x, y):
 	if grid_data[x][y] == null: return
-	var origin = grid_data[x][y]["origin"]
-	var mod_id = grid_data[x][y]["id"]
+	var origin = grid_data[x][y]["origin"]; var mod_id = grid_data[x][y]["id"]
 	var r_size = get_rotated_size(module_db[mod_id]["size"], grid_data[x][y]["rotation"])
 	for i in range(origin.x, origin.x + r_size.x):
-		for j in range(origin.y, origin.y + r_size.y):
-			grid_data[i][j] = null
+		for j in range(origin.y, origin.y + r_size.y): grid_data[i][j] = null
 	queue_redraw()
 
-# --- ОТРИСОВКА КОНСТРУКТОРА ---
 func _draw():
 	if not is_building_mode: return
-	
 	draw_clearance_zones()
 
 	for x in range(GRID_SIZE_X):
 		for y in range(GRID_SIZE_Y):
 			var data = grid_data[x][y]
 			if data != null and data["origin"] == Vector2i(x, y):
-				var m_id = data["id"]
-				var rot = data["rotation"]
+				var m_id = data["id"]; var rot = data["rotation"]
 				var r_size = get_rotated_size(module_db[m_id]["size"], rot)
 				var rect = Rect2(x * CELL_SIZE, y * CELL_SIZE, r_size.x * CELL_SIZE, r_size.y * CELL_SIZE)
 				draw_rect(rect, module_db[m_id]["color"], true)
 				draw_rect(rect, Color.BLACK, false, 1.0)
-				
 				if module_db[m_id]["has_marker"]:
-					var final_rot = 2 if m_id == "cockpit" else rot
-					draw_marker(rect, final_rot)
+					draw_marker(rect, 2 if m_id == "cockpit" else rot)
 
 	if hovered_cell != Vector2i(-1, -1):
 		var r_size = get_rotated_size(module_db[selected_module]["size"], module_rotation)
@@ -188,44 +190,96 @@ func draw_clearance_zones():
 					draw_rect(Rect2(z_rect.position * CELL_SIZE, z_rect.size * CELL_SIZE), z_color, true)
 
 func draw_marker(rect, rot):
-	var marker_color = Color(0, 0, 0, 0.5)
-	var thickness = 6
-	var m_rect = Rect2()
-	if rot == 0: m_rect = Rect2(rect.position.x, rect.position.y + rect.size.y - thickness, rect.size.x, thickness)
-	elif rot == 1: m_rect = Rect2(rect.position.x, rect.position.y, thickness, rect.size.y)
-	elif rot == 2: m_rect = Rect2(rect.position.x, rect.position.y, rect.size.x, thickness)
-	elif rot == 3: m_rect = Rect2(rect.position.x + rect.size.x - thickness, rect.position.y, thickness, rect.size.y)
-	draw_rect(m_rect, marker_color, true)
+	var m_color = Color(0, 0, 0, 0.5); var th = 6; var m_rect = Rect2()
+	if rot == 0: m_rect = Rect2(rect.position.x, rect.position.y + rect.size.y - th, rect.size.x, th)
+	elif rot == 1: m_rect = Rect2(rect.position.x, rect.position.y, th, rect.size.y)
+	elif rot == 2: m_rect = Rect2(rect.position.x, rect.position.y, rect.size.x, th)
+	elif rot == 3: m_rect = Rect2(rect.position.x + rect.size.x - th, rect.position.y, th, rect.size.y)
+	draw_rect(m_rect, m_color, true)
 
-func create_ui_tabs():
-	var container = get_node("CanvasLayer/UI/TabContainer")
-	for child in container.get_children(): child.queue_free()
-	
-	var categories = {}
-	for id in module_db:
-		var cat = module_db[id]["cat"]
-		if not categories.has(cat):
-			var vbl = VBoxContainer.new()
-			vbl.name = cat
-			container.add_child(vbl)
-			categories[cat] = vbl
-		var btn = Button.new()
-		btn.text = module_db[id]["name"] + " (" + str(module_db[id]["size"].x) + "x" + str(module_db[id]["size"].y) + ")"
-		btn.pressed.connect(func(): selected_module = id; module_rotation = 0)
-		categories[cat].add_child(btn)
+func create_vertical_ui():
+	var canvas = get_node("CanvasLayer")
+	for c in canvas.get_children():
+		if c.name == "UI": c.queue_free()
 		
-	# --- НОВОЕ: КНОПКА ЗАПУСКА ---
+	var ui = Control.new()
+	ui.name = "UI"
+	ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# ИСПРАВЛЕНИЕ: Говорим пустому контейнеру не глотать клики мыши
+	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE 
+	canvas.add_child(ui)
+	
+	var panel = PanelContainer.new()
+	panel.custom_minimum_size = Vector2(250, 0)
+	panel.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	# А вот панель должна блокировать клики под собой
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP 
+	ui.add_child(panel)
+	
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_left", 10)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(margin)
+	
+	var main_vbox = VBoxContainer.new()
+	margin.add_child(main_vbox)
+	
+	var lbl_cat = Label.new(); lbl_cat.text = "КАТЕГОРИИ:"; main_vbox.add_child(lbl_cat)
+	var cat_vbox = VBoxContainer.new(); main_vbox.add_child(cat_vbox)
+	
+	var categories = []
+	for id in module_db:
+		if not module_db[id]["cat"] in categories: categories.append(module_db[id]["cat"])
+		
+	for cat in categories:
+		var btn = Button.new()
+		btn.text = cat
+		btn.pressed.connect(func(): 
+			active_category = cat
+			refresh_module_list()
+		)
+		cat_vbox.add_child(btn)
+		
+	var separator = HSeparator.new(); main_vbox.add_child(separator)
+	
+	var lbl_mod = Label.new(); lbl_mod.text = "МОДУЛИ:"; main_vbox.add_child(lbl_mod)
+	ui_modules_container = VBoxContainer.new()
+	main_vbox.add_child(ui_modules_container)
+	
+	refresh_module_list()
+	
+	var spacer = Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(spacer)
+	
 	var launch_btn = Button.new()
 	launch_btn.text = "🚀 В ПОЛЕТ!"
 	launch_btn.modulate = Color.GREEN
+	launch_btn.custom_minimum_size = Vector2(0, 50)
 	launch_btn.pressed.connect(launch_ship)
-	get_node("CanvasLayer/UI").add_child(launch_btn)
+	main_vbox.add_child(launch_btn)
 
-# --- МАГИЯ: СБОРКА ФИЗИЧЕСКОГО КОРАБЛЯ ---
+func refresh_module_list():
+	for c in ui_modules_container.get_children(): c.queue_free()
+	for id in module_db:
+		if module_db[id]["cat"] == active_category:
+			var btn = Button.new()
+			btn.text = module_db[id]["name"] + " (" + str(module_db[id]["size"].x) + "x" + str(module_db[id]["size"].y) + ")"
+			# ИСПРАВЛЕНИЕ: Используем bind() для передачи конкретного id, а не ссылки на переменную цикла
+			btn.pressed.connect(_on_module_selected.bind(id))
+			ui_modules_container.add_child(btn)
+
+# Вспомогательная функция для исправления ошибки замыкания (closure bug)
+func _on_module_selected(mod_id):
+	selected_module = mod_id
+	module_rotation = 0
+
 func launch_ship():
-	# 1. Ищем геометрический центр постройки, чтобы выровнять центр масс
 	var min_x = 99999; var min_y = 99999; var max_x = -99999; var max_y = -99999
 	var has_modules = false
+	var cockpit_forward = Vector2(0, -1) 
 	
 	for x in range(GRID_SIZE_X):
 		for y in range(GRID_SIZE_Y):
@@ -234,75 +288,60 @@ func launch_ship():
 				has_modules = true
 				var px = x * CELL_SIZE; var py = y * CELL_SIZE
 				var m_size = get_rotated_size(module_db[data["id"]]["size"], data["rotation"])
-				var px_max = px + m_size.x * CELL_SIZE; var py_max = py + m_size.y * CELL_SIZE
-				
 				if px < min_x: min_x = px
 				if py < min_y: min_y = py
-				if px_max > max_x: max_x = px_max
-				if py_max > max_y: max_y = py_max
+				if (px + m_size.x * CELL_SIZE) > max_x: max_x = px + m_size.x * CELL_SIZE
+				if (py + m_size.y * CELL_SIZE) > max_y: max_y = py + m_size.y * CELL_SIZE
+				
+				if data["id"] == "cockpit":
+					cockpit_forward = get_clearance_direction("cockpit", data["rotation"])
 
-	if not has_modules:
-		print("Корабль пуст!")
-		return
-		
+	if not has_modules: return
 	var center_offset = Vector2(min_x + max_x, min_y + max_y) / 2.0
 
-	# 2. Создаем физическое тело
 	var physical_ship = RigidBody2D.new()
-	# Прикрепляем наш новый скрипт полета
 	physical_ship.set_script(load("res://scripts/player_ship.gd"))
-	
 	var compiled_modules = []
 	
-	# 3. Собираем коллайдеры (физику) и графику
 	for x in range(GRID_SIZE_X):
 		for y in range(GRID_SIZE_Y):
 			var data = grid_data[x][y]
 			if data and data["origin"] == Vector2i(x, y):
-				var m_id = data["id"]
-				var rot = data["rotation"]
+				var m_id = data["id"]; var rot = data["rotation"]
 				var r_size = get_rotated_size(module_db[m_id]["size"], rot)
 				
-				# Создаем физический куб для модуля
 				var collision = CollisionShape2D.new()
 				var shape = RectangleShape2D.new()
 				shape.size = Vector2(r_size.x, r_size.y) * CELL_SIZE
 				collision.shape = shape
-				
-				# Сдвигаем на центр масс
-				var raw_pos = Vector2(x, y) * CELL_SIZE + shape.size / 2.0
-				collision.position = raw_pos - center_offset
+				collision.position = (Vector2(x, y) * CELL_SIZE + shape.size / 2.0) - center_offset
 				physical_ship.add_child(collision)
-				
-				# Подготавливаем данные для отрисовки внутри player_ship.gd
-				var is_engine = "engine" in m_id
-				var visual_rot = 2 if m_id == "cockpit" else rot
 				
 				compiled_modules.append({
 					"rect": Rect2(Vector2(x, y) * CELL_SIZE - center_offset, shape.size),
 					"color": module_db[m_id]["color"],
 					"has_marker": module_db[m_id]["has_marker"],
-					"visual_rot": visual_rot,
-					"is_engine": is_engine,
+					"visual_rot": 2 if m_id == "cockpit" else rot,
+					"is_engine": "engine" in m_id,
 					"is_main_engine": module_db[m_id].get("is_main_engine", false),
 					"clear_dir": get_clearance_direction(m_id, rot),
 					"engine_length": r_size.y if get_clearance_direction(m_id, rot).y != 0 else r_size.x,
 					"power": 0.0
 				})
 	
-	# Передаем данные скрипту полета
 	physical_ship.modules_data = compiled_modules
+	physical_ship.ship_forward_dir = cockpit_forward 
 	
-	# 4. Передаем управление
-	is_building_mode = false # Отключаем логику конструктора
-	get_node("CanvasLayer").hide() # Прячем UI
-	queue_redraw() # Очищаем экран от сетки
+	is_building_mode = false 
+	get_node("CanvasLayer").hide() 
+	queue_redraw() 
 	
 	add_child(physical_ship)
-	physical_ship.global_position = center_offset # Ставим корабль туда, где он был построен
 	
-	# Переносим камеру на корабль, чтобы она летала за ним
+	# Не забываем учесть наше глобальное смещение сетки при старте
+	physical_ship.global_position = center_offset + self.position 
+	
 	var cam = get_node_or_null("Camera2D")
 	if cam:
 		cam.reparent(physical_ship)
-		cam.position = Vector2.ZERO # Камера ровно по центру корабля
+		cam.position = Vector2.ZERO
