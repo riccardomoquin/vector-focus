@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://7qx8rqo4ev8t"]
+
+[ext_resource type="Script" uid="uid://dy3y4shgaufgf" path="res://test_flight.gd" id="1_v5cxr"]
+
+[node name="TestShip" type="RigidBody2D" unique_id=855639510]
+gravity_scale = 0.0
+linear_damp = 1.5
+angular_damp = 3.0
+script = ExtResource("1_v5cxr")
+
+[node name="Polygon2D" type="Polygon2D" parent="." unique_id=165007456]
+polygon = PackedVector2Array(-10, -10, 20, 0, -10, 10)
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="." unique_id=1364071106]
+polygon = PackedVector2Array(20, 0, -10, 10, -10, -10)
