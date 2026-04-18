@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://dex2ihne3ifen"]
+
+[ext_resource type="PackedScene" uid="uid://daqtu5vmt6ga" path="res://scenes/base_module.tscn" id="1_5634n"]
+
+[sub_resource type="Gradient" id="Gradient_vpf56"]
+colors = PackedColorArray(0, 0, 0, 0.24313726, 1, 0.85882354, 0, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_6oono"]
+gradient = SubResource("Gradient_vpf56")
+fill_from = Vector2(0.4957265, 0)
+fill_to = Vector2(0.5, 1)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_cnuhe"]
+size = Vector2(96, 96)
+
+[node name="Core" unique_id=1082366078 instance=ExtResource("1_5634n")]
+module_id = "core"
+mass = 50.0
+max_hp = 500.0
+energy_gen = 10.0
+buffer_max = 1000.0
+
+[node name="Sprite2D" parent="." index="0" unique_id=1650058344]
+position = Vector2(-2.861023e-06, -2.861023e-06)
+scale = Vector2(1.4999999, 1.4999999)
+texture = SubResource("GradientTexture2D_6oono")
+
+[node name="CollisionShape2D" parent="Area2D" parent_id_path=PackedInt32Array(24605779) index="0" unique_id=2008716844]
+shape = SubResource("RectangleShape2D_cnuhe")

@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://djqwn8na6mcbw"]
+
+[ext_resource type="PackedScene" uid="uid://daqtu5vmt6ga" path="res://scenes/base_module.tscn" id="1_ac18s"]
+[ext_resource type="Script" uid="uid://07kde2mnhbgq" path="res://scripts/modules/engine_module.gd" id="2_32s1j"]
+
+[sub_resource type="Gradient" id="Gradient_heebr"]
+colors = PackedColorArray(0, 0, 0, 1, 1, 0.40392157, 0.13725491, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_uljxa"]
+gradient = SubResource("Gradient_heebr")
+fill_from = Vector2(0.48290598, 1)
+fill_to = Vector2(0.52991456, 0)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_bxi5g"]
+size = Vector2(64, 64)
+
+[node name="EngineT1" unique_id=1082366078 instance=ExtResource("1_ac18s")]
+script = ExtResource("2_32s1j")
+thrust_multiplier = 1.0
+dynamic_ramp = 1.0
+module_id = "engine_t1"
+mass = 15.0
+energy_cons_active = 1.0
+
+[node name="Sprite2D" parent="." index="0" unique_id=1650058344]
+texture = SubResource("GradientTexture2D_uljxa")
+
+[node name="CollisionShape2D" parent="Area2D" parent_id_path=PackedInt32Array(24605779) index="0" unique_id=2008716844]
+shape = SubResource("RectangleShape2D_bxi5g")

@@ -2,9 +2,11 @@
 
 [ext_resource type="Script" uid="uid://swadic0y5bhu" path="res://scripts/modules/base_module.gd" id="1_ljaub"]
 
-[node name="Node2D" type="Node2D" unique_id=1082366078]
+[node name="BaseModule" type="Node2D" unique_id=1082366078]
 script = ExtResource("1_ljaub")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1650058344]
 
 [node name="Area2D" type="Area2D" parent="." unique_id=24605779]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=2008716844]
