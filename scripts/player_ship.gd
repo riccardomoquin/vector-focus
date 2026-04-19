@@ -1,17 +1,18 @@
 extends RigidBody2D
 
-# 1. ФИЗИКА НЬЮТОНА: Мощность увеличена для тяжелых кораблей!
 const ENGINE_POWER = 40000.0
 const CELL_SIZE = 32
 
 var modules_data = [] 
 var ship_forward_dir = Vector2(0, -1) 
 
+# Добавляем переменную для хранения безопасной скорости вращения
+var safe_spin_speed: float = 5.0 
+
 func _ready():
 	gravity_scale = 0
-	# Снижаем трение космоса, чтобы корабль лучше летел по инерции
-	linear_damp = 0.5 
-	angular_damp = 2.0
+	linear_damp = 0.0 
+	angular_damp = 0.0 
 
 	var total_mass = 0.0
 	var com_sum = Vector2.ZERO
@@ -26,18 +27,29 @@ func _ready():
 		mass = total_mass
 		center_of_mass_mode = RigidBody2D.CENTER_OF_MASS_MODE_CUSTOM
 		center_of_mass = com_sum / total_mass
-		print("Корабль собран! Масса: ", mass, " | Центр тяжести: ", center_of_mass)
+		
+		# --- НОВАЯ ЛОГИКА: Расчет предела прочности ---
+		# Для массы 100кг будет 5.0. Для 500кг будет 1.0. 
+		# clamp не даст скорости упасть ниже 0.5 (чтобы огромные баржи хоть как-то крутились) 
+		# и не даст превысить 10.0 (чтобы сверхлегкие дроны не сходили с ума).
+		safe_spin_speed = clamp(500.0 / mass, 0.5, 10.0)
+		
+		print("Корабль собран! Масса: ", mass)
+		print("Центр тяжести: ", center_of_mass)
+		print("Безопасная скорость вращения: ", safe_spin_speed, " рад/с")
 
 func _physics_process(delta):
 	var forward = Vector2(ship_forward_dir)
 	var right = Vector2(-forward.y, forward.x)
 	
+	# --- 2. УМНОЕ ПРИЦЕЛИВАНИЕ (Бортовой контроллер) ---
 	var target_angle = global_position.direction_to(get_global_mouse_position()).angle()
 	var forward_angle = forward.angle()
 	var angle_diff = wrapf(target_angle - (rotation + forward_angle), -PI, PI)
 	
-	# Автопилот: рассчитываем нужную угловую скорость и крутящий момент
-	var desired_angular_vel = angle_diff * 5.0
+	# ИСПОЛЬЗУЕМ ВЫСЧИТАННЫЙ ПРЕДЕЛ СКОРОСТИ
+	var desired_angular_vel = clamp(angle_diff * 5.0, -safe_spin_speed, safe_spin_speed)
+	
 	var torque_needed = desired_angular_vel - angular_velocity
 	var desired_torque_dir = sign(torque_needed)
 	
@@ -64,20 +76,20 @@ func _physics_process(delta):
 				target_power = 1.0
 				
 			# Ротационная тяга (Бортовой компьютер сам подбирает двигатели!)
-			if needs_rotation:
-				var engine_torque = pos_from_com.cross(thrust_dir)
-				if sign(engine_torque) == desired_torque_dir and abs(engine_torque) > 0.1:
-					target_power = 1.0
+			#if needs_rotation:
+				#var engine_torque = pos_from_com.cross(thrust_dir)
+				#if sign(engine_torque) == desired_torque_dir and abs(engine_torque) > 0.1:
+					#target_power = 1.0
 			
-			var current_power = mod.get("power", 0.0)
-			var new_power = lerp(current_power, target_power, engine_node.dynamic_ramp * 10.0 * delta)
-			mod["power"] = new_power
+			#var current_power = mod.get("power", 0.0)
+			#var new_power = lerp(current_power, target_power, engine_node.dynamic_ramp * 10.0 * delta)
+			#mod["power"] = new_power
 			
-			if new_power > 0.01:
-				var force_mag = ENGINE_POWER * engine_node.thrust_multiplier * new_power
-				var global_force = (thrust_dir * force_mag).rotated(rotation)
-				var global_offset = engine_node.position.rotated(rotation)
-				apply_force(global_force, global_offset)
+			#if new_power > 0.01:
+				#var force_mag = ENGINE_POWER * engine_node.thrust_multiplier * new_power
+				#var global_force = (thrust_dir * force_mag).rotated(rotation)
+				#var global_offset = engine_node.position.rotated(rotation)
+				#apply_force(global_force, global_offset)
 
 	# 2. ИСПРАВЛЕНИЕ: Всегда перерисовываем космос каждый кадр!
 	queue_redraw()

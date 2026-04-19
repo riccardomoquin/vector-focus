@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://emxvg5wlhwrf"]
+
+[ext_resource type="PackedScene" uid="uid://daqtu5vmt6ga" path="res://scenes/base_module.tscn" id="1_ga5w8"]
+
+[sub_resource type="Gradient" id="Gradient_ga5w8"]
+colors = PackedColorArray(0, 0, 0, 1, 0.5035392, 0.67877346, 0.55630213, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_mlplb"]
+gradient = SubResource("Gradient_ga5w8")
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_s8r4p"]
+size = Vector2(64, 64)
+
+[node name="cockpit" unique_id=1082366078 instance=ExtResource("1_ga5w8")]
+module_id = "cockpit"
+mass = 6.0
+
+[node name="Sprite2D" parent="." index="0" unique_id=1650058344]
+texture = SubResource("GradientTexture2D_mlplb")
+
+[node name="CollisionShape2D" parent="Area2D" parent_id_path=PackedInt32Array(24605779) index="0" unique_id=2008716844]
+shape = SubResource("RectangleShape2D_s8r4p")

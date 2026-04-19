@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://rnomvds1lhsn"]
+
+[ext_resource type="PackedScene" uid="uid://daqtu5vmt6ga" path="res://scenes/base_module.tscn" id="1_mv7wv"]
+
+[sub_resource type="Gradient" id="Gradient_mv7wv"]
+offsets = PackedFloat32Array(0, 0.99239546)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_k26o8"]
+gradient = SubResource("Gradient_mv7wv")
+width = 32
+height = 32
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_17y2j"]
+size = Vector2(32, 32)
+
+[node name="hull" unique_id=1082366078 instance=ExtResource("1_mv7wv")]
+module_id = "hull"
+mass = 1.0
+max_hp = 10.0
+
+[node name="Sprite2D" parent="." index="0" unique_id=1650058344]
+texture = SubResource("GradientTexture2D_k26o8")
+
+[node name="CollisionShape2D" parent="Area2D" parent_id_path=PackedInt32Array(24605779) index="0" unique_id=2008716844]
+shape = SubResource("RectangleShape2D_17y2j")

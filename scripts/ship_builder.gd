@@ -9,16 +9,21 @@ var hovered_cell = Vector2i(-1, -1)
 var module_rotation = 0 
 var is_building_mode = true 
 
-# Добавили scene_path для Ядра и Двигателя Т1 (убедись, что пути совпадают с твоей папкой)
+# --- НОВОЕ: Переменные для расчетов массы ---
+var current_mass = 0.0
+var current_com = Vector2.ZERO
+var lbl_mass_info = null # Ссылка на UI элемент
+
+# Обновленная база данных: добавлена "mass" и пути к будущим сценам
 var module_db = {
-	"hull": {"name": "Корпус", "cat": "Корпуса", "size": Vector2i(1, 1), "can_drag": true, "is_system": false, "color": Color.GRAY, "has_marker": false, "scene_path": ""},
-	"armor": {"name": "Броня", "cat": "Корпуса", "size": Vector2i(1, 1), "can_drag": true, "is_system": false, "color": Color.DARK_SLATE_GRAY, "has_marker": false, "scene_path": ""},
-	"core": {"name": "Ядро", "cat": "Системы", "size": Vector2i(3, 3), "can_drag": false, "is_system": true, "color": Color.YELLOW, "has_marker": false, "scene_path": "res://scenes/core.tscn"},
-	"cockpit": {"name": "Кокпит", "cat": "Системы", "size": Vector2i(2, 2), "can_drag": false, "is_system": true, "color": Color.CYAN, "has_marker": true, "scene_path": ""},
-	"shield": {"name": "Генератор щита", "cat": "Системы", "size": Vector2i(2, 3), "can_drag": false, "is_system": true, "color": Color.AQUA, "has_marker": false, "scene_path": ""},
-	"engine_m": {"name": "Маневровый", "cat": "Двигатели", "size": Vector2i(1, 1), "can_drag": false, "is_system": false, "color": Color.ORANGE, "has_marker": true, "is_main_engine": false, "scene_path": ""},
-	"engine_t1": {"name": "Силовой T1", "cat": "Двигатели", "size": Vector2i(2, 2), "can_drag": false, "is_system": false, "color": Color.ORANGE_RED, "has_marker": true, "is_main_engine": true, "scene_path": "res://scenes/engine_t1.tscn"},
-	"engine_t2": {"name": "Силовой T2", "cat": "Двигатели", "size": Vector2i(2, 3), "can_drag": false, "is_system": false, "color": Color.RED, "has_marker": true, "is_main_engine": true, "scene_path": ""}
+	"hull": {"name": "Корпус", "cat": "Корпуса", "size": Vector2i(1, 1), "can_drag": true, "is_system": false, "color": Color.GRAY, "has_marker": false, "scene_path": "res://scenes/hull.tscn", "mass": 5.0},
+	"armor": {"name": "Броня", "cat": "Корпуса", "size": Vector2i(1, 1), "can_drag": true, "is_system": false, "color": Color.DARK_SLATE_GRAY, "has_marker": false, "scene_path": "res://scenes/armor.tscn", "mass": 20.0},
+	"core": {"name": "Ядро", "cat": "Системы", "size": Vector2i(3, 3), "can_drag": false, "is_system": true, "color": Color.YELLOW, "has_marker": false, "scene_path": "res://scenes/core.tscn", "mass": 50.0},
+	"cockpit": {"name": "Кокпит", "cat": "Системы", "size": Vector2i(2, 2), "can_drag": false, "is_system": true, "color": Color.CYAN, "has_marker": true, "scene_path": "res://scenes/cockpit.tscn", "mass": 10.0},
+	"shield": {"name": "Генератор щита", "cat": "Опционально", "size": Vector2i(2, 3), "can_drag": false, "is_system": true, "color": Color.AQUA, "has_marker": false, "scene_path": "res://scenes/shield.tscn", "mass": 15.0},
+	"engine_m": {"name": "Маневровый", "cat": "Двигатели", "size": Vector2i(1, 1), "can_drag": false, "is_system": false, "color": Color.ORANGE, "has_marker": true, "is_main_engine": false, "scene_path": "res://scenes/engine_m.tscn", "mass": 5.0},
+	"engine_t1": {"name": "Силовой T1", "cat": "Двигатели", "size": Vector2i(2, 2), "can_drag": false, "is_system": false, "color": Color.ORANGE_RED, "has_marker": true, "is_main_engine": true, "scene_path": "res://scenes/engine_t1.tscn", "mass": 15.0},
+	"engine_t2": {"name": "Силовой T2", "cat": "Двигатели", "size": Vector2i(2, 3), "can_drag": false, "is_system": false, "color": Color.RED, "has_marker": true, "is_main_engine": true, "scene_path": "res://scenes/engine_t2.tscn", "mass": 30.0}
 }
 
 var selected_module = "hull" 
@@ -31,6 +36,7 @@ func _ready():
 	self.position = Vector2(300, 50)
 	var cam = get_node_or_null("Camera2D")
 	if cam: cam.position = Vector2(320, 320)
+	calculate_mass_and_com()
 
 func initialize_grid():
 	grid_data = []
@@ -61,17 +67,21 @@ func is_cell_in_any_clearance(x, y) -> bool:
 				var m_size = get_rotated_size(module_db[m_id]["size"], m_rot)
 				var clear_dir = get_clearance_direction(m_id, m_rot)
 				if clear_dir != Vector2i.ZERO:
-					# ИСПРАВЛЕНО: здесь должно быть m_rot
 					if is_point_in_clearance_beam(gx, gy, m_size, m_rot, clear_dir, x, y): return true
 	return false
 
+# ИСПРАВЛЕНО: Добавлен Кокпит в расчеты зон (с противоположным вектором, так как он смотрит вперед)
 func get_clearance_direction(id, rot) -> Vector2i:
-	if id == "cockpit": return Vector2i(0, -1)
 	if "engine" in id:
 		if rot == 0: return Vector2i(0, 1)  
 		if rot == 1: return Vector2i(-1, 0) 
 		if rot == 2: return Vector2i(0, -1) 
 		if rot == 3: return Vector2i(1, 0)  
+	if id == "cockpit":
+		if rot == 0: return Vector2i(0, -1)
+		if rot == 1: return Vector2i(1, 0)
+		if rot == 2: return Vector2i(0, 1)
+		if rot == 3: return Vector2i(-1, 0)
 	return Vector2i.ZERO
 
 func is_point_in_clearance_beam(ox, oy, size, _rot, dir, px, py) -> bool:
@@ -81,6 +91,33 @@ func is_point_in_clearance_beam(ox, oy, size, _rot, dir, px, py) -> bool:
 	elif dir == Vector2i(-1, 0): start_rect = Rect2(0, oy, ox, size.y)
 	elif dir == Vector2i(1, 0): start_rect = Rect2(ox + size.x, oy, GRID_SIZE_X - (ox + size.x), size.y)
 	return start_rect.has_point(Vector2(px, py))
+
+# --- НОВОЕ: Пересчет массы и Центра Тяжести ---
+func calculate_mass_and_com():
+	current_mass = 0.0
+	var com_sum = Vector2.ZERO
+	
+	for x in range(GRID_SIZE_X):
+		for y in range(GRID_SIZE_Y):
+			var data = grid_data[x][y]
+			if data and data["origin"] == Vector2i(x, y):
+				var m_id = data["id"]
+				var r_size = get_rotated_size(module_db[m_id]["size"], data["rotation"])
+				var m_mass = module_db[m_id].get("mass", 10.0)
+				current_mass += m_mass
+				
+				var center_pos = Vector2(x, y) * CELL_SIZE + (Vector2(r_size.x, r_size.y) * CELL_SIZE) / 2.0
+				com_sum += center_pos * m_mass
+				
+	if current_mass > 0:
+		current_com = com_sum / current_mass
+	else:
+		current_com = Vector2.ZERO
+		
+	if lbl_mass_info:
+		lbl_mass_info.text = "МАССА: " + str(current_mass) + " кг"
+		
+	queue_redraw()
 
 func _process(_delta):
 	if not is_building_mode: return
@@ -107,9 +144,9 @@ func _unhandled_input(event):
 			if event.button_index == MOUSE_BUTTON_LEFT: place_module(hovered_cell.x, hovered_cell.y)
 			elif event.button_index == MOUSE_BUTTON_RIGHT: remove_module(hovered_cell.x, hovered_cell.y)
 	elif event is InputEventKey and event.pressed and event.keycode == KEY_R:
-		if selected_module != "cockpit":
-			module_rotation = (module_rotation + 1) % 4
-			queue_redraw()
+		# Кокпит тоже теперь можно крутить
+		module_rotation = (module_rotation + 1) % 4
+		queue_redraw()
 
 func place_module(x, y):
 	var r_size = get_rotated_size(module_db[selected_module]["size"], module_rotation)
@@ -127,7 +164,7 @@ func place_module(x, y):
 		if not is_path_clear(start_x, start_y, beam_width, my_clear_dir): return 
 	for i in range(x, x + r_size.x):
 		for j in range(y, y + r_size.y): grid_data[i][j] = {"id": selected_module, "origin": Vector2i(x, y), "rotation": module_rotation}
-	queue_redraw()
+	calculate_mass_and_com()
 
 func remove_module(x, y):
 	if grid_data[x][y] == null: return
@@ -135,7 +172,7 @@ func remove_module(x, y):
 	var r_size = get_rotated_size(module_db[mod_id]["size"], grid_data[x][y]["rotation"])
 	for i in range(origin.x, origin.x + r_size.x):
 		for j in range(origin.y, origin.y + r_size.y): grid_data[i][j] = null
-	queue_redraw()
+	calculate_mass_and_com()
 
 func _draw():
 	if not is_building_mode: return
@@ -149,7 +186,11 @@ func _draw():
 				var rect = Rect2(x * CELL_SIZE, y * CELL_SIZE, r_size.x * CELL_SIZE, r_size.y * CELL_SIZE)
 				draw_rect(rect, module_db[m_id]["color"], true)
 				draw_rect(rect, Color.BLACK, false, 1.0)
-				if module_db[m_id]["has_marker"]: draw_marker(rect, 2 if m_id == "cockpit" else rot)
+				# Отрисовка маркера передней части (кокпит и двигатели)
+				if module_db[m_id]["has_marker"]:
+					var draw_rot = rot
+					if m_id == "cockpit": draw_rot = rot # Кокпит теперь крутится корректно
+					draw_marker(rect, draw_rot)
 
 	if hovered_cell != Vector2i(-1, -1):
 		var r_size = get_rotated_size(module_db[selected_module]["size"], module_rotation)
@@ -158,6 +199,13 @@ func _draw():
 	var line_color = Color(0, 1, 0, 0.1)
 	for i in range(GRID_SIZE_X + 1): draw_line(Vector2(i * CELL_SIZE, 0), Vector2(i * CELL_SIZE, GRID_SIZE_Y * CELL_SIZE), line_color)
 	for i in range(GRID_SIZE_Y + 1): draw_line(Vector2(0, i * CELL_SIZE), Vector2(GRID_SIZE_X * CELL_SIZE, i * CELL_SIZE), line_color)
+
+	# --- НОВОЕ: Отрисовка Центра Масс ---
+	if current_mass > 0:
+		var r = 8.0
+		draw_circle(current_com, r, Color(0, 1, 0, 0.4))
+		draw_line(current_com - Vector2(15, 0), current_com + Vector2(15, 0), Color.GREEN, 2.0)
+		draw_line(current_com - Vector2(0, 15), current_com + Vector2(0, 15), Color.GREEN, 2.0)
 
 func draw_clearance_zones():
 	for x in range(GRID_SIZE_X):
@@ -177,10 +225,10 @@ func draw_clearance_zones():
 
 func draw_marker(rect, rot):
 	var m_color = Color(0, 0, 0, 0.5); var th = 6; var m_rect = Rect2()
-	if rot == 0: m_rect = Rect2(rect.position.x, rect.position.y + rect.size.y - th, rect.size.x, th)
-	elif rot == 1: m_rect = Rect2(rect.position.x, rect.position.y, th, rect.size.y)
-	elif rot == 2: m_rect = Rect2(rect.position.x, rect.position.y, rect.size.x, th)
-	elif rot == 3: m_rect = Rect2(rect.position.x + rect.size.x - th, rect.position.y, th, rect.size.y)
+	if rot == 0: m_rect = Rect2(rect.position.x, rect.position.y, rect.size.x, th) # Маркер СВЕРХУ для rot=0 (направление вперед/вверх)
+	elif rot == 1: m_rect = Rect2(rect.position.x + rect.size.x - th, rect.position.y, th, rect.size.y) # Маркер СПРАВА
+	elif rot == 2: m_rect = Rect2(rect.position.x, rect.position.y + rect.size.y - th, rect.size.x, th) # Маркер СНИЗУ
+	elif rot == 3: m_rect = Rect2(rect.position.x, rect.position.y, th, rect.size.y) # Маркер СЛЕВА
 	draw_rect(m_rect, m_color, true)
 
 func create_vertical_ui():
@@ -203,6 +251,14 @@ func create_vertical_ui():
 	panel.add_child(margin)
 	var main_vbox = VBoxContainer.new()
 	margin.add_child(main_vbox)
+	
+	# --- НОВОЕ: Плашка с массой ---
+	lbl_mass_info = Label.new()
+	lbl_mass_info.text = "МАССА: 0 кг"
+	lbl_mass_info.add_theme_color_override("font_color", Color.GREEN)
+	main_vbox.add_child(lbl_mass_info)
+	main_vbox.add_child(HSeparator.new())
+	
 	var lbl_cat = Label.new(); lbl_cat.text = "КАТЕГОРИИ:"; main_vbox.add_child(lbl_cat)
 	var cat_vbox = VBoxContainer.new(); main_vbox.add_child(cat_vbox)
 	var categories = []
@@ -235,7 +291,6 @@ func _on_module_selected(mod_id):
 	selected_module = mod_id
 	module_rotation = 0
 
-# --- ИЗМЕНЕННАЯ СБОРКА СЦЕН ---
 func launch_ship():
 	var min_x = 99999; var min_y = 99999; var max_x = -99999; var max_y = -99999
 	var has_modules = false
@@ -258,7 +313,6 @@ func launch_ship():
 	var center_offset = Vector2(min_x + max_x, min_y + max_y) / 2.0
 
 	var physical_ship = RigidBody2D.new()
-	# Включаем ручной режим центра масс (мы посчитаем его позже)
 	physical_ship.center_of_mass_mode = RigidBody2D.CENTER_OF_MASS_MODE_CUSTOM
 	physical_ship.set_script(load("res://scripts/player_ship.gd"))
 	var compiled_modules = []
@@ -275,20 +329,16 @@ func launch_ship():
 				var center_pos = (Vector2(x, y) * CELL_SIZE + (Vector2(r_size.x, r_size.y) * CELL_SIZE) / 2.0) - center_offset
 				
 				if scene_path != "":
-					# Если у модуля есть своя сцена - спавним её!
 					var scene_res = load(scene_path)
 					if scene_res:
 						var mod_instance = scene_res.instantiate()
 						mod_instance.position = center_pos
-						# Поворачиваем сцену на нужный угол (Godot использует радианы, PI/2 = 90 градусов)
 						mod_instance.rotation = rot * (PI / 2.0)
 						physical_ship.add_child(mod_instance)
 						has_scene = true
-						# ВАЖНО: сохраняем ссылку на сам узел, чтобы скрипт полета мог к нему обращаться
 						data["node_ref"] = mod_instance
 						
 				if not has_scene:
-					# Если сцены нет (старый подход) - лепим коллайдер сами
 					var collision = CollisionShape2D.new()
 					var shape = RectangleShape2D.new()
 					shape.size = Vector2(r_size.x, r_size.y) * CELL_SIZE
@@ -296,18 +346,17 @@ func launch_ship():
 					collision.position = center_pos
 					physical_ship.add_child(collision)
 				
-				# Собираем данные для скрипта полета
 				compiled_modules.append({
 					"rect": Rect2(Vector2(x, y) * CELL_SIZE - center_offset, Vector2(r_size.x, r_size.y) * CELL_SIZE),
 					"color": module_db[m_id]["color"],
 					"has_marker": module_db[m_id]["has_marker"],
-					"visual_rot": 2 if m_id == "cockpit" else rot,
+					"visual_rot": rot,
 					"is_engine": "engine" in m_id,
 					"is_main_engine": module_db[m_id].get("is_main_engine", false),
 					"clear_dir": get_clearance_direction(m_id, rot),
 					"engine_length": r_size.y if get_clearance_direction(m_id, rot).y != 0 else r_size.x,
 					"power": 0.0,
-					"node_ref": data.get("node_ref", null), # Передаем ссылку на живой узел (если он есть)
+					"node_ref": data.get("node_ref", null),
 					"has_scene": has_scene
 				})
 	
