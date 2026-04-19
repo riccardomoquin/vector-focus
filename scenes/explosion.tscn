@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://bx7jspddxe3tb"]
+
+[ext_resource type="Script" uid="uid://cci4a0l25rxc8" path="res://scenes/explosion.gd" id="1_17npe"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_nfeox"]
+particle_flag_disable_z = true
+spread = 180.0
+initial_velocity_min = 100.0
+initial_velocity_max = 300.0
+gravity = Vector3(0, 98, 0)
+scale_min = 2.0
+scale_max = 5.0
+color = Color(0.31042203, 0.251035, 0.19025752, 1)
+
+[node name="Explosion" type="Node2D" unique_id=479555304]
+script = ExtResource("1_17npe")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="." unique_id=143907080]
+emitting = false
+amount = 30
+one_shot = true
+explosiveness = 1.0
+process_material = SubResource("ParticleProcessMaterial_nfeox")

@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://q2ftghld6hs"]
+
+[ext_resource type="PackedScene" uid="uid://daqtu5vmt6ga" path="res://scenes/base_module.tscn" id="1_y1jqf"]
+[ext_resource type="Script" uid="uid://7crvp0x7ftld" path="res://scripts/modules/weapon_module.gd" id="2_ft0q0"]
+
+[sub_resource type="Gradient" id="Gradient_y1jqf"]
+colors = PackedColorArray(0, 0, 0, 1, 0, 0.14509805, 1, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_ft0q0"]
+gradient = SubResource("Gradient_y1jqf")
+width = 32
+fill_from = Vector2(0.52991456, 0)
+fill_to = Vector2(0.4957265, 1)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rot70"]
+size = Vector2(32, 64)
+
+[node name="WeaponLaser" unique_id=1082366078 instance=ExtResource("1_y1jqf")]
+script = ExtResource("2_ft0q0")
+energy_cost_per_sec = 30.0
+damage_per_sec = 150.0
+max_range = 10000.0
+module_id = "WeaponLaser"
+
+[node name="Sprite2D" parent="." index="0" unique_id=1650058344]
+texture = SubResource("GradientTexture2D_ft0q0")
+
+[node name="CollisionShape2D" parent="Area2D" parent_id_path=PackedInt32Array(24605779) index="0" unique_id=2008716844]
+shape = SubResource("RectangleShape2D_rot70")

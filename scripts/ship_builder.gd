@@ -3,6 +3,7 @@ extends Node2D
 const GRID_SIZE_X = 20
 const GRID_SIZE_Y = 20
 const CELL_SIZE = 32 
+const SAVE_PATH = "user://ship_save.json"
 
 var grid_data = [] 
 var hovered_cell = Vector2i(-1, -1)
@@ -17,6 +18,7 @@ var lbl_mass_info = null # Ссылка на UI элемент
 # Обновленная база данных: добавлена "mass" и пути к будущим сценам
 var module_db = {
 	"hull": {"name": "Корпус", "cat": "Корпуса", "size": Vector2i(1, 1), "can_drag": true, "is_system": false, "color": Color.GRAY, "has_marker": false, "scene_path": "res://scenes/hull.tscn", "mass": 5.0},
+	"weapon_laser": {"name": "Лазер T1", "cat": "Оружие", "size": Vector2i(1, 2), "can_drag": false, "is_system": false, "color": Color.PALE_VIOLET_RED, "has_marker": true, "scene_path": "res://scenes/weapon_laser.tscn", "mass": 10.0},
 	"armor": {"name": "Броня", "cat": "Корпуса", "size": Vector2i(1, 1), "can_drag": true, "is_system": false, "color": Color.DARK_SLATE_GRAY, "has_marker": false, "scene_path": "res://scenes/armor.tscn", "mass": 20.0},
 	"core": {"name": "Ядро", "cat": "Системы", "size": Vector2i(3, 3), "can_drag": false, "is_system": true, "color": Color.YELLOW, "has_marker": false, "scene_path": "res://scenes/core.tscn", "mass": 50.0},
 	"cockpit": {"name": "Кокпит", "cat": "Системы", "size": Vector2i(2, 2), "can_drag": false, "is_system": true, "color": Color.CYAN, "has_marker": true, "scene_path": "res://scenes/cockpit.tscn", "mass": 10.0},
@@ -24,6 +26,7 @@ var module_db = {
 	"engine_m": {"name": "Маневровый", "cat": "Двигатели", "size": Vector2i(1, 1), "can_drag": false, "is_system": false, "color": Color.ORANGE, "has_marker": true, "is_main_engine": false, "scene_path": "res://scenes/engine_m.tscn", "mass": 5.0},
 	"engine_t1": {"name": "Силовой T1", "cat": "Двигатели", "size": Vector2i(2, 2), "can_drag": false, "is_system": false, "color": Color.ORANGE_RED, "has_marker": true, "is_main_engine": true, "scene_path": "res://scenes/engine_t1.tscn", "mass": 15.0},
 	"engine_t2": {"name": "Силовой T2", "cat": "Двигатели", "size": Vector2i(2, 3), "can_drag": false, "is_system": false, "color": Color.RED, "has_marker": true, "is_main_engine": true, "scene_path": "res://scenes/engine_t2.tscn", "mass": 30.0}
+	
 }
 
 var selected_module = "hull" 
@@ -259,6 +262,24 @@ func create_vertical_ui():
 	main_vbox.add_child(lbl_mass_info)
 	main_vbox.add_child(HSeparator.new())
 	
+	# --- НОВОЕ: Кнопки Сохранения и Загрузки ---
+	var save_load_hbox = HBoxContainer.new()
+	main_vbox.add_child(save_load_hbox)
+	
+	var save_btn = Button.new()
+	save_btn.text = "💾 Сохр."
+	save_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	save_btn.pressed.connect(save_ship)
+	save_load_hbox.add_child(save_btn)
+	
+	var load_btn = Button.new()
+	load_btn.text = "📂 Загр."
+	load_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	load_btn.pressed.connect(load_ship)
+	save_load_hbox.add_child(load_btn)
+	
+	main_vbox.add_child(HSeparator.new())
+	
 	var lbl_cat = Label.new(); lbl_cat.text = "КАТЕГОРИИ:"; main_vbox.add_child(lbl_cat)
 	var cat_vbox = VBoxContainer.new(); main_vbox.add_child(cat_vbox)
 	var categories = []
@@ -373,3 +394,45 @@ func launch_ship():
 	if cam:
 		cam.reparent(physical_ship)
 		cam.position = Vector2.ZERO
+# --- СИСТЕМА СОХРАНЕНИЯ И ЗАГРУЗКИ ---
+func save_ship():
+	var save_array = []
+	for x in range(GRID_SIZE_X):
+		for y in range(GRID_SIZE_Y):
+			var data = grid_data[x][y]
+			# Сохраняем только оригинальную клетку модуля (чтобы не дублировать блоки 2х2)
+			if data and data["origin"] == Vector2i(x, y):
+				save_array.append({
+					"x": x,
+					"y": y,
+					"id": data["id"],
+					"rot": data["rotation"]
+				})
+				
+	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(save_array))
+		print("Корабль успешно сохранен в: ", SAVE_PATH)
+
+func load_ship():
+	if not FileAccess.file_exists(SAVE_PATH):
+		print("Файл сохранения не найден!")
+		return
+		
+	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file:
+		var json_str = file.get_as_text()
+		var saved_data = JSON.parse_string(json_str)
+		
+		if saved_data and typeof(saved_data) == TYPE_ARRAY:
+			initialize_grid() # Очищаем текущую сетку
+			
+			for item in saved_data:
+				selected_module = item["id"]
+				module_rotation = item["rot"]
+				# Пробуем поставить модуль
+				place_module(item["x"], item["y"])
+				
+			calculate_mass_and_com()
+			queue_redraw()
+			print("Корабль успешно загружен!")

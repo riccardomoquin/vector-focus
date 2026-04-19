@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://dvtk4wh0c6x4i"]
+
+[ext_resource type="Script" uid="uid://chb0x2wmi1mnq" path="res://scripts/meteor.gd" id="1_tcwo0"]
+
+[sub_resource type="Gradient" id="Gradient_tcwo0"]
+offsets = PackedFloat32Array(0, 0.67093235, 0.6965265, 0.99817187)
+colors = PackedColorArray(0.17195836, 0.14355806, 0.09542633, 1, 0.12518474, 0.10681653, 0.07568371, 0.9090559, 0.088123694, 0.0777044, 0.06004065, 0.8369963, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_pxso2"]
+gradient = SubResource("Gradient_tcwo0")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_fitd0"]
+radius = 30.0
+
+[node name="meteor" type="RigidBody2D" unique_id=1097195372]
+gravity_scale = 0.0
+script = ExtResource("1_tcwo0")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=79816369]
+texture = SubResource("GradientTexture2D_pxso2")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1097351668]
+shape = SubResource("CircleShape2D_fitd0")
